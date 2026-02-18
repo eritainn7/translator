@@ -1,16 +1,26 @@
 package semantics
 
+import (
+	. "translator/lexical/bases/model"
+)
+
 type semanticHandler1 struct {
-	current_sequence_leksems string
+	buffer string
 }
 
-func InitSemanticHandler1(sequence_leksems string) *semanticHandler1 {
+func InitSemanticHandler1(buffer string) *semanticHandler1 {
 	return &semanticHandler1{
-		current_sequence_leksems: sequence_leksems,
+		buffer: buffer,
 	}
 }
 
 func (instance *semanticHandler1) Run() string {
+	code, _ := FindCodeInCSV(Identificators, instance.buffer)
+	if code == -1 {
+		AddCodeInCSV(Identificators, instance.buffer)
+	}
+	code, _ = FindCodeInCSV(Identificators, instance.buffer)
+	mark_code := mark(code, Identificators)
 
-	return instance.current_sequence_leksems
+	return mark_code
 }
