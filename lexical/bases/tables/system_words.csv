@@ -44,3 +44,6 @@ decimal,43
 byte,44
 sbyte,45
 string,46
+class,47
+static,48
+private,49
