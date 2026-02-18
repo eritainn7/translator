@@ -2,26 +2,17 @@ package model
 
 import "path/filepath"
 
-type MutableBase interface{}
-type ImmutableBase interface{}
+type ImmutableBase = int
+type MutableBase = rune
 
-type systemWord = ImmutableBase
-type separators = ImmutableBase
-type operations = ImmutableBase
+var SystemWord ImmutableBase = 0
+var Separators ImmutableBase = 1
+var Operations ImmutableBase = 2
 
-type symConsts = MutableBase
-type boolConsts = MutableBase
-type identificators = MutableBase
-type numConsts = MutableBase
-
-var SystemWord systemWord = 0
-var Separators separators = 1
-var Operations operations = 2
-
-var SymConsts symConsts = 3
-var BoolConsts boolConsts = 4
-var Identificators identificators = 5
-var NumConsts numConsts = 6
+var SymConsts MutableBase = '3'
+var BoolConsts MutableBase = '4'
+var Identificators MutableBase = '5'
+var NumConsts MutableBase = '6'
 
 var path_to_system_word_base, _ = filepath.Abs("lexical/bases/tables/system_words.csv")
 var path_to_separators_base, _ = filepath.Abs("lexical/bases/tables/separators.csv")
