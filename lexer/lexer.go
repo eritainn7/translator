@@ -18,17 +18,23 @@ type Lexer struct {
 	startLine   int
 	startColumn int
 	tables      *tables.Tables
+
+	// Для определения области видимости
+	scopeStack   []string
+	currentScope string
 }
 
 func NewLexer(input string, tables *tables.Tables) *Lexer {
 	return &Lexer{
-		input:   input,
-		pos:     0,
-		line:    1,
-		column:  1,
-		lexemes: make([]models.Lexeme, 0),
-		state:   models.STATE_START,
-		tables:  tables,
+		input:        input,
+		pos:          0,
+		line:         1,
+		column:       1,
+		lexemes:      make([]models.Lexeme, 0),
+		state:        models.STATE_START,
+		tables:       tables,
+		scopeStack:   []string{"global"},
+		currentScope: "global",
 	}
 }
 
@@ -51,13 +57,75 @@ func (l *Lexer) nextChar() {
 	}
 }
 
+// Определение типа идентификатора на основе контекста
+func (l *Lexer) determineIdentifierType(name string) string {
+	// Проверяем, не является ли идентификатор служебным словом
+	if _, exists := l.tables.ServiceWords[name]; exists {
+		return "служебное_слово"
+	}
+
+	// Простой эвристический анализ типа
+	// По умолчанию считаем переменной
+	idType := models.ID_TYPE_VARIABLE
+
+	// Проверка на функцию (если следующий символ '(')
+	nextCh := l.currentChar()
+	if nextCh == '(' {
+		idType = models.ID_TYPE_FUNCTION
+	}
+
+	// Проверка на класс/структуру (по соглашению именования с большой буквы)
+	if len(name) > 0 && name[0] >= 'A' && name[0] <= 'Z' {
+		idType = models.ID_TYPE_CLASS
+	}
+
+	return idType
+}
+
+// Обновление области видимости на основе служебных слов
+func (l *Lexer) updateScope(lexeme models.Lexeme) {
+	switch lexeme.Value {
+	case "class", "struct", "interface", "namespace":
+		// Ожидаем, что следующим будет идентификатор - имя класса/пространства имен
+		l.currentScope = "waiting_for_name"
+	case "{":
+		// Вход в блок - создаем новую область видимости
+		newScope := fmt.Sprintf("%s_block_%d", l.currentScope, len(l.scopeStack))
+		l.scopeStack = append(l.scopeStack, newScope)
+		l.currentScope = newScope
+		l.tables.SetCurrentScope(newScope)
+	case "}":
+		// Выход из блока
+		if len(l.scopeStack) > 1 {
+			l.scopeStack = l.scopeStack[:len(l.scopeStack)-1]
+			l.currentScope = l.scopeStack[len(l.scopeStack)-1]
+			l.tables.SetCurrentScope(l.currentScope)
+		}
+	}
+}
+
 func (l *Lexer) addLexeme(lexType byte, value string) {
 	var index int
+
 	switch lexType {
 	case models.L_SERVICE:
 		index = l.tables.ServiceWords[value]
 	case models.L_IDENTIFIER:
-		index = l.tables.GetIdentifierID(value)
+		// Определяем тип идентификатора
+		idType := l.determineIdentifierType(value)
+
+		// Если ожидаем имя для класса/функции, обновляем область видимости
+		if l.currentScope == "waiting_for_name" {
+			// Создаем новую область видимости с именем
+			newScope := value
+			l.scopeStack = append(l.scopeStack, newScope)
+			l.currentScope = newScope
+			l.tables.SetCurrentScope(newScope)
+			l.currentScope = newScope
+		}
+
+		// Получаем ID с дополнительной информацией
+		index = l.tables.GetIdentifierID(value, l.startLine, l.startColumn, l.currentScope, idType)
 	case models.L_CONSTANT:
 		index = l.tables.GetConstantID(value)
 	case models.L_DELIMITER:
@@ -77,6 +145,11 @@ func (l *Lexer) addLexeme(lexType byte, value string) {
 	}
 
 	l.lexemes = append(l.lexemes, lexeme)
+
+	// Обновляем область видимости на основе лексемы
+	if lexType == models.L_DELIMITER || lexType == models.L_SERVICE {
+		l.updateScope(lexeme)
+	}
 
 	// Вывод в требуемом формате
 	if lexType != models.L_ERROR {
