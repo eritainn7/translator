@@ -34,11 +34,29 @@ const (
 	STATE_ERROR
 )
 
+// Типы идентификаторов
+const (
+	ID_TYPE_VARIABLE = "переменная"
+	ID_TYPE_FUNCTION = "функция"
+	ID_TYPE_CLASS    = "класс"
+	ID_TYPE_UNKNOWN  = "неизвестно"
+)
+
 // Лексема
 type Lexeme struct {
 	Type   byte
 	Index  int
 	Value  string
+	Line   int
+	Column int
+}
+
+// Информация об идентификаторе
+type IdentifierInfo struct {
+	ID     int
+	Name   string
+	Scope  string
+	Type   string
 	Line   int
 	Column int
 }
