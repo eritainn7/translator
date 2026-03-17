@@ -3,6 +3,7 @@ package tables
 import (
 	"encoding/csv"
 	"fmt"
+	"lexer/models"
 	"os"
 	"strconv"
 )
@@ -15,10 +16,16 @@ type Tables struct {
 	Identifiers  map[string]int
 	Constants    map[string]int
 
+	// Новая структура для хранения дополнительной информации об идентификаторах
+	IdentifierInfo map[string]models.IdentifierInfo
+
 	nextIdentifierID int
 	nextConstantID   int
 
 	dataPath string
+
+	// Текущая область видимости
+	currentScope string
 }
 
 // Создание нового экземпляра таблиц
@@ -29,9 +36,11 @@ func NewTables(dataPath string) (*Tables, error) {
 		Operations:       make(map[string]int),
 		Identifiers:      make(map[string]int),
 		Constants:        make(map[string]int),
+		IdentifierInfo:   make(map[string]models.IdentifierInfo),
 		nextIdentifierID: 1,
 		nextConstantID:   1,
 		dataPath:         dataPath,
+		currentScope:     "global",
 	}
 
 	// Загрузка таблиц из CSV
@@ -135,7 +144,7 @@ func (t *Tables) loadOperations() error {
 	return nil
 }
 
-// Загрузка идентификаторов из файла
+// Загрузка идентификаторов из файла с дополнительной информацией
 func (t *Tables) loadIdentifiers() {
 	file, err := os.Open(t.dataPath + "/identifiers.csv")
 	if err != nil {
@@ -157,7 +166,24 @@ func (t *Tables) loadIdentifiers() {
 		}
 		if len(record) >= 2 {
 			id, _ := strconv.Atoi(record[0])
-			t.Identifiers[record[1]] = id
+			name := record[1]
+			t.Identifiers[name] = id
+
+			// Загружаем дополнительную информацию, если она есть
+			if len(record) >= 5 {
+				info := models.IdentifierInfo{
+					ID:    id,
+					Name:  name,
+					Scope: record[2],
+					Type:  record[3],
+				}
+				line, _ := strconv.Atoi(record[4])
+				column, _ := strconv.Atoi(record[5])
+				info.Line = line
+				info.Column = column
+				t.IdentifierInfo[name] = info
+			}
+
 			if id > maxID {
 				maxID = id
 			}
@@ -167,7 +193,7 @@ func (t *Tables) loadIdentifiers() {
 	t.nextIdentifierID = maxID + 1
 }
 
-// Сохранение идентификаторов в файл
+// Сохранение идентификаторов в файл с дополнительной информацией
 func (t *Tables) saveIdentifiers() error {
 	file, err := os.Create(t.dataPath + "/identifiers.csv")
 	if err != nil {
@@ -178,14 +204,33 @@ func (t *Tables) saveIdentifiers() error {
 	writer := csv.NewWriter(file)
 	defer writer.Flush()
 
-	// Записываем заголовок
-	if err := writer.Write([]string{"id", "identifier"}); err != nil {
+	// Записываем заголовок с новыми полями
+	if err := writer.Write([]string{"id", "identifier", "scope", "type", "line", "column"}); err != nil {
 		return err
 	}
 
-	// Записываем все идентификаторы
-	for ident, id := range t.Identifiers {
-		if err := writer.Write([]string{strconv.Itoa(id), ident}); err != nil {
+	// Записываем все идентификаторы с дополнительной информацией
+	for name, id := range t.Identifiers {
+		info, exists := t.IdentifierInfo[name]
+		if !exists {
+			info = models.IdentifierInfo{
+				ID:     id,
+				Name:   name,
+				Scope:  "unknown",
+				Type:   "unknown",
+				Line:   0,
+				Column: 0,
+			}
+		}
+
+		if err := writer.Write([]string{
+			strconv.Itoa(id),
+			name,
+			info.Scope,
+			info.Type,
+			strconv.Itoa(info.Line),
+			strconv.Itoa(info.Column),
+		}); err != nil {
 			return err
 		}
 	}
@@ -219,19 +264,61 @@ func (t *Tables) saveConstants() error {
 	return nil
 }
 
-// Получение ID идентификатора
-func (t *Tables) GetIdentifierID(name string) int {
+// Получение ID идентификатора с сохранением дополнительной информации
+func (t *Tables) GetIdentifierID(name string, line, column int, scope string, idType string) int {
 	if id, exists := t.Identifiers[name]; exists {
+		// Обновляем информацию, если она новая
+		if _, infoExists := t.IdentifierInfo[name]; !infoExists {
+			t.IdentifierInfo[name] = models.IdentifierInfo{
+				ID:     id,
+				Name:   name,
+				Scope:  scope,
+				Type:   idType,
+				Line:   line,
+				Column: column,
+			}
+			t.saveIdentifiers()
+		}
 		return id
 	}
+
 	id := t.nextIdentifierID
 	t.Identifiers[name] = id
+
+	// Сохраняем дополнительную информацию
+	t.IdentifierInfo[name] = models.IdentifierInfo{
+		ID:     id,
+		Name:   name,
+		Scope:  scope,
+		Type:   idType,
+		Line:   line,
+		Column: column,
+	}
+
 	t.nextIdentifierID++
 
 	// Сохраняем в файл при каждом новом идентификаторе
 	t.saveIdentifiers()
 
 	return id
+}
+
+// Установка текущей области видимости
+func (t *Tables) SetCurrentScope(scope string) {
+	t.currentScope = scope
+}
+
+// Получение текущей области видимости
+func (t *Tables) GetCurrentScope() string {
+	return t.currentScope
+}
+
+// Получение ID идентификатора (старая версия для обратной совместимости)
+func (t *Tables) GetIdentifierIDLegacy(name string) int {
+	if id, exists := t.Identifiers[name]; exists {
+		return id
+	}
+	return t.GetIdentifierID(name, 0, 0, t.currentScope, models.ID_TYPE_UNKNOWN)
 }
 
 // Получение ID константы
