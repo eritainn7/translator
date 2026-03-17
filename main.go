@@ -33,6 +33,12 @@ func main() {
 		return
 	}
 
+	// Создаем папку output если её нет
+	if err := os.MkdirAll("output", 0755); err != nil {
+		fmt.Printf("Error creating output directory: %v\n", err)
+		return
+	}
+
 	// Загружаем таблицы из CSV
 	tbl, err := tables.NewTables(dataPath)
 	if err != nil {
@@ -67,7 +73,27 @@ func main() {
 	lexer := lexer.NewLexer(input, tbl)
 	list_lexems := lexer.Analyze()
 
-	//Вывод последовательности лексем в файл
+	// Вывод пустой строки после лексем
+	fmt.Println()
+
+	// Вывод информации об идентификаторах
+	fmt.Println("\nТаблица идентификаторов:")
+	fmt.Println("------------------------")
+	fmt.Printf("%-5s %-20s %-20s %-15s %-6s %-6s\n",
+		"ID", "Идентификатор", "Область видимости", "Тип", "Линия", "Колонка")
+	fmt.Println("---------------------------------------------------------------")
+
+	for name, id := range tbl.Identifiers {
+		if info, exists := tbl.IdentifierInfo[name]; exists {
+			fmt.Printf("%-5d %-20s %-20s %-15s %-6d %-6d\n",
+				id, name, info.Scope, info.Type, info.Line, info.Column)
+		} else {
+			fmt.Printf("%-5d %-20s %-20s %-15s %-6d %-6d\n",
+				id, name, "unknown", "unknown", 0, 0)
+		}
+	}
+
+	// Вывод последовательности лексем в файл
 	file_output, err := os.Create("output/lexems.txt")
 	if err != nil {
 		fmt.Println("Unable to create file:", err)
@@ -81,6 +107,9 @@ func main() {
 	}
 	file_output.Write([]byte(output_string))
 
-	//Форирование таблицы кодов лексем
-	shared.SaveLexemesToCSV("seq_codes.csv", list_lexems)
+	// Формирование таблицы кодов лексем
+	shared.SaveLexemesToCSV("output/seq_codes.csv", list_lexems)
+
+	fmt.Println("\n\nРезультаты сохранены в папке output/")
+	fmt.Printf("Таблица идентификаторов сохранена в %s/identifiers.csv\n", dataPath)
 }
