@@ -1,0 +1,11 @@
+id,identifier,scope,type,line,column
+3,born,Car_block_2,переменная,3,17
+4,getName,Car_block_2,функция,10,19
+5,getBorn,Car_block_2,функция,14,16
+8,cars,Program_block_3_block_4,переменная,21,15
+10,Length,Program_block_3_block_4,класс,27,34
+1,Car,Car,класс,1,14
+2,name,Car_block_2,переменная,2,20
+6,Program,Program,класс,19,14
+7,main,Program_block_3,функция,20,24
+9,i,Program_block_3_block_4,переменная,27,18
