@@ -1,31 +1,23 @@
-public class Car {
-    private string name;
-    private int born;
-
-    public Car(string name, string born) {
-        this.name = name;
-        this.born = born;
-    }
-
-    public string getName() {
-        return name;
-    }
-
-    public int getBorn() {
-        return born;
-    }
-}
-
-public class Program {
-    public static void main() {
-        Car[] cars = {
-            new Car("Bugati", 2008),
-            new Car("BMV", 2012),
-            new Car("Hundai", 2013)
+public class Program
+{   
+    public string Str()
+    {
+        string name = "";
+        for (int i = 0; i < 10; i++)
+        {
+            name += i;
         }
+        return "Alex";
+    }
 
-        for (int i = 0; i < cars.Length; i++) {
-            cars[i].getName();
-        }
+    public int fact(int x)
+    {
+        if (x < 2) return 1;
+        return x * fact(x-1);
+    }
+
+    public static void main()
+    {
+        for (int i=0; i < 10; i++) Console.WriteLine(fact(i));
     }
 }

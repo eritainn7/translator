@@ -1,5 +1,3 @@
-dist/
-main
-.idea
-data/constants.csv
-data/identifiers.csv
+*.docx
+.idea/
+*.csv
